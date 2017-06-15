@@ -36,16 +36,14 @@ var _ = Describe("AutoScaler recurring schedule policy", func() {
 		createApp := cf.Cf("push", appName, "--no-start", "-i", countStr, "-b", cfg.NodejsBuildpackName, "-m", fmt.Sprintf("%dM", cfg.NodeMemoryLimit), "-p", config.NODE_APP, "-d", cfg.AppsDomain).Wait(cfg.DefaultTimeoutDuration())
 		Expect(createApp).To(Exit(0), "failed creating app")
 
-		guid := cf.Cf("app", appName, "--guid").Wait(cfg.DefaultTimeout)
+		guid := cf.Cf("app", appName, "--guid").Wait(cfg.DefaultTimeoutDuration())
 		Expect(guid).To(Exit(0))
 		appGUID = strings.TrimSpace(string(guid.Out.Contents()))
 	})
 
 	AfterEach(func() {
-		Expect(cf.Cf("delete", appName, "-f", "-r").Wait(cfg.CfPushTimeoutDuration())).To(Exit(0))
-
-		deleteService := cf.Cf("delete-service", instanceName, "-f").Wait(cfg.DefaultTimeoutDuration())
-		Expect(deleteService).To(Exit(0))
+		Expect(cf.Cf("delete", appName, "-f", "-r").Wait(cfg.DefaultTimeoutDuration())).To(Exit(0))
+		Expect(cf.Cf("delete-service", instanceName, "-f").Wait(cfg.DefaultTimeoutDuration())).To(Exit(0))
 	})
 
 	Context("when scale out by recurring schedule", func() {
@@ -59,7 +57,7 @@ var _ = Describe("AutoScaler recurring schedule policy", func() {
 			bindService := cf.Cf("bind-service", appName, instanceName, "-c", policyStr).Wait(cfg.DefaultTimeoutDuration())
 			Expect(bindService).To(Exit(0), "failed binding service to app with a policy ")
 
-			Expect(cf.Cf("start", appName).Wait(cfg.DefaultTimeout * 2)).To(Exit(0))
+			Expect(cf.Cf("start", appName).Wait(cfg.DefaultTimeout * 3)).To(Exit(0))
 			waitForNInstancesRunning(appGUID, initialInstanceCount, cfg.DefaultTimeoutDuration())
 		})
 

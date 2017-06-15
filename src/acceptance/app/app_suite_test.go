@@ -31,10 +31,10 @@ type appSummary struct {
 }
 
 type ScalingPolicy struct {
-	InstanceMin  int              `json:"instance_min_count"`
-	InstanceMax  int              `json:"instance_max_count"`
-	ScalingRules []*ScalingRule   `json:"scaling_rules,omitempty"`
-	Schedules    ScalingSchedules `json:"schedules,omitempty"`
+	InstanceMin  int               `json:"instance_min_count"`
+	InstanceMax  int               `json:"instance_max_count"`
+	ScalingRules []*ScalingRule    `json:"scaling_rules,omitempty"`
+	Schedules    *ScalingSchedules `json:"schedules,omitempty"`
 }
 
 type ScalingRule struct {
@@ -205,9 +205,9 @@ func averageMemoryUsedByInstance(appGUID string, timeout time.Duration) uint64 {
 	return memSum / uint64(len(memoryUsedArray))
 }
 
-func generateDynamicScaleOutPolicy(instanceMin, instanceMax int, threshold int64) string {
+func generateDynamicScaleOutPolicy(instanceMin, instanceMax int, metricName string, threshold int64) string {
 	scalingOutRule := ScalingRule{
-		MetricType:            "memoryused",
+		MetricType:            metricName,
 		StatWindowSeconds:     interval,
 		BreachDurationSeconds: interval,
 		Threshold:             threshold,
@@ -227,9 +227,9 @@ func generateDynamicScaleOutPolicy(instanceMin, instanceMax int, threshold int64
 	return string(bytes)
 }
 
-func generateDynamicScaleInPolicy(instanceMin, instanceMax int, threshold int64) string {
+func generateDynamicScaleInPolicy(instanceMin, instanceMax int, metricName string, threshold int64) string {
 	scalingInRule := ScalingRule{
-		MetricType:            "memoryused",
+		MetricType:            metricName,
 		StatWindowSeconds:     interval,
 		BreachDurationSeconds: interval,
 		Threshold:             threshold,
@@ -275,7 +275,7 @@ func generateDynamicAndSpecificDateSchedulePolicy(instanceMin, instanceMax int, 
 		InstanceMin:  instanceMin,
 		InstanceMax:  instanceMax,
 		ScalingRules: []*ScalingRule{&scalingInRule},
-		Schedules: ScalingSchedules{
+		Schedules: &ScalingSchedules{
 			Timezone:              timezone,
 			SpecificDateSchedules: []*SpecificDateSchedule{&specificDateSchedule},
 		},
@@ -325,7 +325,7 @@ func generateDynamicAndRecurringSchedulePolicy(instanceMin, instanceMax int, thr
 		InstanceMin:  instanceMin,
 		InstanceMax:  instanceMax,
 		ScalingRules: []*ScalingRule{&scalingInRule},
-		Schedules: ScalingSchedules{
+		Schedules: &ScalingSchedules{
 			Timezone:           timezone,
 			RecurringSchedules: []*RecurringSchedule{&recurringSchedule},
 		},
