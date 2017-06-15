@@ -8,13 +8,12 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gexec"
 
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
 )
 
-var _ = Describe("AutoScaler dynamic policy", func() {
+var _ = Describe("Dynamic scaling based on memory metrics", func() {
 	var (
 		appName              string
 		appGUID              string
@@ -32,7 +31,7 @@ var _ = Describe("AutoScaler dynamic policy", func() {
 	JustBeforeEach(func() {
 		appName = generator.PrefixedRandomName("autoscaler", "nodeapp")
 		countStr := strconv.Itoa(initialInstanceCount)
-		createApp := cf.Cf("push", appName, "--no-start", "-i", countStr, "-b", cfg.NodejsBuildpackName, "-m", fmt.Sprintf("%dM", cfg.NodeMemoryLimit), "-p", config.NODE_APP, "-d", cfg.AppsDomain).Wait(cfg.DefaultTimeoutDuration())
+		createApp := cf.Cf("push", appName, "--no-start", "-i", countStr, "-b", cfg.NodejsBuildpackName, "-m", "128M", "-p", config.NODE_APP, "-d", cfg.AppsDomain).Wait(cfg.DefaultTimeoutDuration())
 		Expect(createApp).To(Exit(0), "failed creating app")
 
 		guid := cf.Cf("app", appName, "--guid").Wait(cfg.DefaultTimeout)
@@ -50,7 +49,56 @@ var _ = Describe("AutoScaler dynamic policy", func() {
 		Expect(deleteService).To(Exit(0))
 	})
 
-	Context("when scale by memoryused", func() {
+	// Context("when scale by memoryused", func() {
+
+	// 	JustBeforeEach(func() {
+	// 		bindService := cf.Cf("bind-service", appName, instanceName, "-c", policy).Wait(cfg.DefaultTimeoutDuration())
+	// 		Expect(bindService).To(Exit(0), "failed binding service to app with a policy ")
+	// 	})
+
+	// 	AfterEach(func() {
+	// 		unbindService := cf.Cf("unbind-service", appName, instanceName).Wait(cfg.DefaultTimeoutDuration())
+	// 		Expect(unbindService).To(Exit(0), "failed unbinding service from app")
+	// 	})
+
+	// 	Context("when memoryused is greater than scaling out threshold", func() {
+	// 		BeforeEach(func() {
+	// 			policy = generateDynamicScaleOutPolicy(1, 2, "memoryused", 20)
+	// 			initialInstanceCount = 1
+	// 		})
+
+	// 		It("should scale out", func() {
+	// 			totalTime := time.Duration(interval*2)*time.Second + 2*time.Minute
+	// 			finishTime := time.Now().Add(totalTime)
+
+	// 			Eventually(func() uint64 {
+	// 				return averageMemoryUsedByInstance(appGUID, totalTime)
+	// 			}, totalTime, 15*time.Second).Should(BeNumerically(">=", 20*MB))
+
+	// 			waitForNInstancesRunning(appGUID, 2, finishTime.Sub(time.Now()))
+	// 		})
+
+	// 	})
+
+	// 	Context("when  memoryused is lower than scaling in threshold", func() {
+	// 		BeforeEach(func() {
+	// 			policy = generateDynamicScaleInPolicy(1, 2, "memoryused", 80)
+	// 			initialInstanceCount = 2
+	// 		})
+	// 		It("should scale in", func() {
+	// 			totalTime := time.Duration(interval*2)*time.Second + 2*time.Minute
+	// 			finishTime := time.Now().Add(totalTime)
+
+	// 			Eventually(func() uint64 {
+	// 				return averageMemoryUsedByInstance(appGUID, totalTime)
+	// 			}, totalTime, 15*time.Second).Should(BeNumerically("<", 80*MB))
+
+	// 			waitForNInstancesRunning(appGUID, 1, finishTime.Sub(time.Now()))
+	// 		})
+	// 	})
+	// })
+
+	Context("when scale by memoryutil", func() {
 
 		JustBeforeEach(func() {
 			bindService := cf.Cf("bind-service", appName, instanceName, "-c", policy).Wait(cfg.DefaultTimeoutDuration())
@@ -64,7 +112,7 @@ var _ = Describe("AutoScaler dynamic policy", func() {
 
 		Context("when memory used is greater than scaling out threshold", func() {
 			BeforeEach(func() {
-				policy = generateDynamicScaleOutPolicy(1, 2, 30)
+				policy = generateDynamicScaleOutPolicy(1, 2, "memoryutil", 10)
 				initialInstanceCount = 1
 			})
 
@@ -74,7 +122,7 @@ var _ = Describe("AutoScaler dynamic policy", func() {
 
 				Eventually(func() uint64 {
 					return averageMemoryUsedByInstance(appGUID, totalTime)
-				}, totalTime, 15*time.Second).Should(BeNumerically(">=", 30*MB))
+				}, totalTime, 15*time.Second).Should(BeNumerically(">=", 13*MB))
 
 				waitForNInstancesRunning(appGUID, 2, finishTime.Sub(time.Now()))
 			})
@@ -83,7 +131,7 @@ var _ = Describe("AutoScaler dynamic policy", func() {
 
 		Context("when  memory used is lower than scaling in threshold", func() {
 			BeforeEach(func() {
-				policy = generateDynamicScaleInPolicy(1, 2, 80)
+				policy = generateDynamicScaleInPolicy(1, 2, "memoryutil", 80)
 				initialInstanceCount = 2
 			})
 			It("should scale in", func() {
@@ -92,11 +140,12 @@ var _ = Describe("AutoScaler dynamic policy", func() {
 
 				Eventually(func() uint64 {
 					return averageMemoryUsedByInstance(appGUID, totalTime)
-				}, totalTime, 15*time.Second).Should(BeNumerically("<", 80*MB))
+				}, totalTime, 15*time.Second).Should(BeNumerically("<", 115*MB))
 
 				waitForNInstancesRunning(appGUID, 1, finishTime.Sub(time.Now()))
 			})
 		})
 
 	})
+
 })
